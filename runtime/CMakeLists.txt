@@ -33,10 +33,7 @@ option(USE_GALACTICS_IFORT
 )
 
 
-option(USE_OPENGL
-  "On to build support for OpenGL Rendering"
-  OFF
-  )
+
 
 option(USE_THRUST
   "On to use thrust for sorting"
@@ -201,83 +198,7 @@ if (WIN32)
 endif (WIN32)
 
 
-if (USE_OPENGL)
-  set(CCFILES ${CCFILES} src/renderloop.cpp src/render_particles.cpp)
-  set(HFILES ${HFILES} include/renderloop.h include/render_particles.h)
 
-  set (CCFILES ${CCFILES}
-  renderer/SmokeRenderer.cpp
-  renderer/SmokeShaders.cpp
-  renderer/paramgl.cpp
-  renderer/param.cpp
-  renderer/GLSLProgram.cpp
-  renderer/framebufferObject.cpp
-  renderer/loadPPM.cpp
-  renderer/Cubemap.cpp
-  src/tr.c
-  )
-
-  set (HFILES ${HFILES}
-  renderer/SmokeRenderer.h
-  renderer/SmokeShaders.h
-  renderer/paramgl.h
-  renderer/param.h
-  renderer/GLSLProgram.h
-  renderer/framebufferObject.h
-  renderer/loadPPM.h
-  renderer/Cubemap.h
-  include/tr.h
-  )
-
-  add_definitions(-DUSE_OPENGL)
-  FIND_PACKAGE(OpenGL REQUIRED)
-
-  # Link the right freeglut
-  if (WIN32)
-    if( CMAKE_SIZEOF_VOID_P EQUAL 8 )
-      set( LIB_PATH ${CMAKE_SOURCE_DIR}/lib/win64/ )
-	  set( GLEW_NAME glew64 )
-    else( CMAKE_SIZEOF_VOID_P EQUAL 8 )
-	  set( LIB_PATH ${CMAKE_SOURCE_DIR}/lib/win32/ )
-	  set( GLEW_NAME glew32 )
-    endif( CMAKE_SIZEOF_VOID_P EQUAL 8 )
-	else (WIN32)
-		set( LIB_PATH ${CMAKE_SOURCE_DIR}/lib/linux )
-	  set( GLEW_NAME GLEW_x86_64 )
-  endif (WIN32)
-
-  #freeglut
-  FIND_PATH(FREEGLUT_INCLUDE_DIR NAMES GL/freeglut.h PATHS ${CMAKE_SOURCE_DIR}/include)
-	if (WIN32)
-		FIND_LIBRARY(FREEGLUT_LIBRARY NAMES freeglut PATHS ${LIB_PATH})
-	else (WIN32)
-		FIND_LIBRARY(FREEGLUT_LIBRARY NAMES glut PATHS ${LIB_PATH})
-	endif (WIN32)
-
-
-  #glew
-  FIND_PATH(GLEW_INCUDE_DIR NAMES GL/glew.h PATHS ${CMAKE_SOURCE_DIR}/include)
-	if (WIN32)
-		FIND_LIBRARY(GLEW_LIBRARY NAMES ${GLEW_NAME} PATHS ${LIB_PATH})
-	else (WIN32)
-		FIND_LIBRARY(GLEW_LIBRARY NAMES ${GLEW_NAME} PATHS ${LIB_PATH})
-	endif (WIN32)
-
-  #glu
-  if (WIN32)
-    set(ALL_LIBRARIES ${FREEGLUT_LIBRARY} ${GLEW_LIBRARY})
-  else (WIN32)
-    FIND_LIBRARY(GLU_LIBRARY NAMES GLU PATHS ${LIB_PATH})
-    set(ALL_LIBRARIES ${FREEGLUT_LIBRARY} ${GLEW_LIBRARY} ${GLU_LIBRARY} ${OPENGL_gl_LIBRARY} ${OPENGL_glu_LIBRARY})
-  endif (WIN32)
-
-  # Copy DLLs
-	if (WIN32)
-		file(COPY ${LIB_PATH}/freeglut.dll DESTINATION ${CMAKE_BINARY_DIR})
-		file(COPY ${LIB_PATH}/${GLEW_NAME}.dll DESTINATION ${CMAKE_BINARY_DIR})
-	endif (WIN32)
-
-endif (USE_OPENGL)
 
 #The SSE support for the local tree walks
 if(WIN32)
@@ -344,16 +265,16 @@ endif(USE_MPI)
 if (USE_GALACTICS OR USE_GALACTICS_IFORT)
   add_definitions("-DGALACTICS")
   if (USE_GALACTICS_IFORT)
-    target_link_libraries(${BINARY_NAME} ${ALL_LIBRARIES} -L./ -lgengalaxy -lifcore)
+    target_link_libraries(${BINARY_NAME} -L./ -lgengalaxy -lifcore)
   else(USE_GALACTICS_IFORT)
-    target_link_libraries(${BINARY_NAME} ${ALL_LIBRARIES} -L./ -lgengalaxy -lgfortran)
+    target_link_libraries(${BINARY_NAME} -L./ -lgengalaxy -lgfortran)
   endif(USE_GALACTICS_IFORT)
 else(USE_GALACTICS OR USE_GALACTICS_IFORT)
-  target_link_libraries(${BINARY_NAME} ${ALL_LIBRARIES})
+  # No additional libraries needed for simplified version
 endif(USE_GALACTICS OR USE_GALACTICS_IFORT)
 
 #target_link_libraries(${BINARY_NAME} ${ALL_LIBRARIES} -lrt -pie -rdynamic)
-target_link_libraries(${BINARY_NAME} ${ALL_LIBRARIES} -lrt ${EXTRA_MPI_LINK_FLAGS})
+target_link_libraries(${BINARY_NAME} -lrt ${EXTRA_MPI_LINK_FLAGS})
 if (USE_MPI)
     target_link_libraries(${BINARY_CLR_NAME}  -lrt ${EXTRA_MPI_LINK_FLAGS})
     target_link_libraries(${BINARY_IO_NAME}   -lrt ${EXTRA_MPI_LINK_FLAGS})

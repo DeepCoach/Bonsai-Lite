@@ -112,11 +112,6 @@ extern void displayTimers()
 
 #include "octree.h"
 
-#ifdef USE_OPENGL
-#include "renderloop.h"
-#include <cuda_gl_interop.h>
-#endif
-
 
 
 
@@ -196,9 +191,6 @@ int main(int argc, char** argv, MPI_Comm comm, int shrMemPID)
   string fullScreenMode    = "";
   bool direct     = false;
   bool fullscreen = false;
-  bool displayFPS = false;
-  bool diskmode   = false;
-  bool stereo     = false;
   bool restartSim = false;
 
   float quickDump  = 0.0;
@@ -210,26 +202,11 @@ int main(int argc, char** argv, MPI_Comm comm, int shrMemPID)
   ENABLE_RUNTIME_LOG = false;
   PREPEND_RANK       = false;
 #endif
-
-#ifdef USE_OPENGL
-	TstartGlow = 0.0;
-	dTstartGlow = 1.0;
-#endif
         
-  double tStartupStart = get_time_main();       
-  double tStartModel   = 0;
-  double tEndModel     = 0;
+  double tStartupStart = get_time_main();
 
   bool mpiRenderMode = false;
   
-  
-
-  int nPlummer  = -1;
-  int nSphere   = -1;
-  int nCube     = -1;
-  int nMilkyWay = -1;
-  int nMWfork   =  4;
-  int galSeed   =  0;
   std::string taskVar;
 //#define TITAN_G
 //#define SLURM_G
@@ -278,29 +255,10 @@ int main(int argc, char** argv, MPI_Comm comm, int shrMemPID)
     ADDUSAGE("     --prepend-rank     prepend the MPI rank in front of the log-lines ");
 #endif
     ADDUSAGE("     --direct           enable N^2 direct gravitation [" << (direct ? "on" : "off") << "]");
-#ifdef USE_OPENGL
-		ADDUSAGE("     --fullscreen #     set fullscreen mode string");
-    ADDUSAGE("     --displayfps       enable on-screen FPS display");
-		ADDUSAGE("     --Tglow  #         enable glow @ # Myr [" << TstartGlow << "]");
-		ADDUSAGE("     --dTglow  #        reach full brightness in @ # Myr [" << dTstartGlow << "]");
-		ADDUSAGE("     --stereo           enable stereo rendering");
-#endif
-#ifdef GALACTICS
-		ADDUSAGE("     --milkyway #       use Milky Way model with # particles per proc");
-		ADDUSAGE("     --mwfork   #       fork Milky Way generator into # processes [" << nMWfork << "]");
-		ADDUSAGE("     --seed     #       seed to use for the Milky Way  [" << galSeed  << "]");
-    ADDUSAGE("     --taskvar  #       variable name to obtain task id [for randoms seed] before MPI_Init. \n");
-#endif
-    ADDUSAGE("     --plummer  #       use Plummer model with # particles per proc");
-		ADDUSAGE("     --sphere   #       use spherical model with # particles per proc");
-		ADDUSAGE("     --cube     #       use cube model with # particles per proc");
-    ADDUSAGE("     --diskmode         use diskmode to read same input file all MPI taks and randomly shuffle its positions");
-    ADDUSAGE("     --mpirendermode    use MPI to communicate with the renderer. Must only be used with bonsai_driver. [disabled]");
 		ADDUSAGE(" ");
 
 
 		opt.setFlag( "help" ,   'h');
-		opt.setFlag( "diskmode");
 		opt.setFlag( "mpirendermode");
 		opt.setOption( "infile",  'i');
 		opt.setOption( "bonsaifile",  'f');
@@ -311,15 +269,6 @@ int main(int argc, char** argv, MPI_Comm comm, int shrMemPID)
 		opt.setOption( "eps",     'e' );
 		opt.setOption( "theta",   'o' );
 		opt.setOption( "rebuild", 'r' );
-    opt.setOption( "plummer");
-#ifdef GALACTICS
-    opt.setOption( "milkyway");
-    opt.setOption( "mwfork");
-    opt.setOption( "taskvar");
-    opt.setOption( "seed");
-#endif
-    opt.setOption( "sphere");
-    opt.setOption( "cube");
     opt.setOption( "dev" );
     opt.setOption( "renderdev" );
     opt.setOption( "logfile" );
@@ -338,13 +287,6 @@ int main(int argc, char** argv, MPI_Comm comm, int shrMemPID)
     opt.setFlag("prepend-rank");
 #endif
     opt.setFlag("direct");
-#ifdef USE_OPENGL
-    opt.setOption( "fullscreen");
-    opt.setOption( "Tglow");
-    opt.setOption( "dTglow");
-    opt.setFlag("displayfps");
-    opt.setFlag("stereo");
-#endif
 
     opt.processCommandArgs( argc, argv );
 
@@ -358,10 +300,7 @@ int main(int argc, char** argv, MPI_Comm comm, int shrMemPID)
 
     if (opt.getFlag("direct"))          direct        = true;
     if (opt.getFlag("restart"))         restartSim    = true;
-    if (opt.getFlag("displayfps"))      displayFPS    = true;
-    if (opt.getFlag("diskmode"))        diskmode      = true;
     if (opt.getFlag("mpirendermode"))   mpiRenderMode = true;
-    if(opt.getFlag("stereo"))           stereo        = true;
 
 #if ENABLE_LOG
     if (opt.getFlag("log"))           ENABLE_RUNTIME_LOG = true;
@@ -370,13 +309,6 @@ int main(int argc, char** argv, MPI_Comm comm, int shrMemPID)
     char *optarg = NULL;
     if ((optarg = opt.getValue("infile")))       fileName           = string(optarg);
     if ((optarg = opt.getValue("bonsaifile")))   bonsaiFileName     = std::string(optarg);
-    if ((optarg = opt.getValue("plummer")))      nPlummer           = atoi(optarg);
-    if ((optarg = opt.getValue("milkyway")))     nMilkyWay          = atoi(optarg);
-    if ((optarg = opt.getValue("mwfork")))       nMWfork            = atoi(optarg);
-    if ((optarg = opt.getValue("seed")))         galSeed            = atoi(optarg);
-    if ((optarg = opt.getValue("taskvar")))      taskVar            = std::string(optarg);
-    if ((optarg = opt.getValue("sphere")))       nSphere            = atoi(optarg);
-    if ((optarg = opt.getValue("cube")))         nCube              = atoi(optarg);
     if ((optarg = opt.getValue("logfile")))      logFileName        = string(optarg);
     if ((optarg = opt.getValue("dev")))          devID              = atoi  (optarg);
     renderDevID = devID;
@@ -396,13 +328,7 @@ int main(int argc, char** argv, MPI_Comm comm, int shrMemPID)
     if ((optarg = opt.getValue("rebuild")))      rebuild_tree_rate  = atoi  (optarg);
     if ((optarg = opt.getValue("reducebodies"))) reduce_bodies_factor = atoi  (optarg);
     if ((optarg = opt.getValue("reducedust")))	 reduce_dust_factor = atoi  (optarg);
-#if USE_OPENGL
-    if ((optarg = opt.getValue("fullscreen")))	 fullScreenMode     = string(optarg);
-    if ((optarg = opt.getValue("Tglow")))	 TstartGlow  = (float)atof(optarg);
-    if ((optarg = opt.getValue("dTglow")))	 dTstartGlow  = (float)atof(optarg);
-    dTstartGlow = std::max(dTstartGlow, 1.0f);
-#endif
-    if (bonsaiFileName.empty() && fileName.empty() && nPlummer == -1 && nSphere == -1 && nMilkyWay == -1 && nCube == -1)
+    if (bonsaiFileName.empty() && fileName.empty())
     {
       opt.printUsage();
       ::exit(0);
@@ -419,33 +345,6 @@ int main(int argc, char** argv, MPI_Comm comm, int shrMemPID)
 
 
 
-  /********** init galaxy before MPI initialization to prevent problems with forking **********/
-  const char * argVal = getenv(taskVar.c_str());
-  if (argVal == NULL)
-  {
-    fprintf(stderr, " Unknown ENV_VARIABLE: %s  -- Falling to basic forking method after MPI_Init, unsafe!\n", taskVar.c_str());
-    taskVar = std::string();
-  }
-  if (nMilkyWay >= 0 && !taskVar.empty())
-  {
-    assert(argVal != NULL);
-    const int procId = atoi(argVal);
-    //    fprintf(stderr, " taskVar= %s , value= %d\n", taskVar.c_str(), procId);
-    #ifdef GALACTICS
-        tStartModel = get_time_main();
-        //Use 32768*7 for nProcs to create independent seeds for all processes we use
-        //do not scale until we know the number of processors
-        generateGalacticsModel(procId, 32768*7, galSeed, nMilkyWay, nMWfork,
-                               false, bodyPositions, bodyVelocities,
-                               bodyIDs);
-        tEndModel   = get_time_main();
-    #else
-        assert(0);
-    #endif
-  }
-
-  /*********************************/
-
   /************** end - command line arguments ********/
 
   /* Overrule settings for the device */
@@ -453,13 +352,6 @@ int main(int argc, char** argv, MPI_Comm comm, int shrMemPID)
   //  devID = renderDevID = atoi(tempRankStr);
   //  fprintf(stderr,"Overruled ids: %d ", devID);
   /* End overrule */
-
-
-#ifdef USE_OPENGL
-  // create OpenGL context first, and register for interop
-  initGL(argc, argv, fullScreenMode.c_str(), stereo);
-//  cudaGLSetGLDevice(devID); //TODO should this not be renderDev?
-#endif
 
   initTimers();
 
@@ -598,12 +490,7 @@ int main(int argc, char** argv, MPI_Comm comm, int shrMemPID)
     else
       cerr << "[INIT]\tRuntime logging is DISABLED \n";
 #endif
-    cerr << "[INIT]\tDirect gravitation is " << (direct ? "ENABLED" : "DISABLED") << endl;
-#if USE_OPENGL
-    cerr << "[INIT]\tTglow = " << TstartGlow << endl;
-    cerr << "[INIT]\tdTglow = " << dTstartGlow << endl;
-    cerr << "[INIT]\tstereo = " << stereo << endl;
-#endif
+      cerr << "[INIT]\tDirect gravitation is " << (direct ? "ENABLED" : "DISABLED") << endl;
 #ifdef USE_MPI                
     cerr << "[INIT]\tCode is built WITH MPI Support \n";
 #else
@@ -704,7 +591,7 @@ int main(int argc, char** argv, MPI_Comm comm, int shrMemPID)
     fprintf(stderr,"Usage of these options requires to code to be built with MPI support!\n"); exit(0);
 #endif      
   }
-  else if ((nPlummer == -1 && nSphere == -1  && nCube == -1 && !diskmode && nMilkyWay == -1) || restartSim)
+  else
   {
     float sTime = 0;
     tree->fileIO->readFile(mpiCommWorld, bodyPositions, bodyVelocities, bodyIDs, fileName,
@@ -717,46 +604,6 @@ int main(int argc, char** argv, MPI_Comm comm, int shrMemPID)
     #endif
     if (snapshotIter > 0) tree->set_nextSnapTime(tree->get_t_current() + snapshotIter);
   }
-  else if(nMilkyWay >= 0)
-  {
-    #ifdef GALACTICS
-        if (taskVar.empty())
-        {
-          tStartModel   = get_time_main();
-
-          generateGalacticsModel(procId, nProcs, galSeed, nMilkyWay, nMWfork,
-                                 true, bodyPositions, bodyVelocities, bodyIDs);
-          tEndModel   = get_time_main();
-        }
-        else
-        {
-          //Scale mass of previously generated model
-          const int ntot = bodyPositions.size();
-          for (int i= 0; i < ntot; i++)
-            bodyPositions[i].w *= 1.0/(double)nProcs;
-        }
-    #else
-          assert(0);
-    #endif
-  }
-  else if(nPlummer >= 0)
-  {
-    generatePlummerModel(bodyPositions, bodyVelocities, bodyIDs, procId, nProcs, nPlummer);
-  }
-  else if (nSphere >= 0)
-  {
-    generateSphereModel(bodyPositions, bodyVelocities, bodyIDs, procId, nProcs, nSphere);
-  }//else
-  else if (nCube >= 0)
-  {
-    generateCubeModel(bodyPositions, bodyVelocities, bodyIDs, procId, nProcs, nCube);
-  }//else
-  else if (diskmode)
-  {
-    generateShuffledDiskModel(bodyPositions, bodyVelocities, bodyIDs, procId, nProcs, fileName);
-  }
-  else
-    assert(0);
 
   tree->mpiSync();
 
@@ -770,8 +617,8 @@ int main(int argc, char** argv, MPI_Comm comm, int shrMemPID)
   LOGF(stderr, "t_current = %g nLocal %d massLocal: %f Combined Mass: %f nGlobal: %llu \n",
                 tree->get_t_current(), (int)bodyPositions.size(),
                 mass, totalMass, tree->nTotalFreq_ull);
-  fprintf(stderr,"Proc: %d Bootup times: Tree/MPI: %lg Threads/log: %lg IC-model: %lg \n",
-                 procId, tStartup-tStartupStart, tStartup2-tStartup, tEndModel - tStartModel);
+  fprintf(stderr,"Proc: %d Bootup times: Tree/MPI: %lg Threads/log: %lg \n",
+                 procId, tStartup-tStartupStart, tStartup2-tStartup);
   tree->load_kernels();
 
   double t0 = tree->get_time();
@@ -804,11 +651,6 @@ int main(int argc, char** argv, MPI_Comm comm, int shrMemPID)
 
 
   //Start the integration
-#ifdef USE_OPENGL
-  octree::IterationData idata;
-  initAppRenderer(argc, argv, tree, idata, displayFPS, stereo);
-  LOG("Finished!!! Took in total: %lg sec\n", tree->get_time()-t0);
-#else
   tree->mpiSync();
   if (procId==0) fprintf(stderr, " Start iterating\n");
 
@@ -911,8 +753,6 @@ int main(int argc, char** argv, MPI_Comm comm, int shrMemPID)
 
   delete tree;
   tree = NULL;
-
-#endif
 
   displayTimers();
 
