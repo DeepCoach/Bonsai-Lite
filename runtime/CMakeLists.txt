@@ -362,5 +362,4 @@ endif(USE_MPI)
 
 #copy test data file
 file(COPY ${CMAKE_SOURCE_DIR}/../inputExamples/model3_child_compact.tipsy DESTINATION ${CMAKE_BINARY_DIR})
-file(COPY ${CMAKE_SOURCE_DIR}/../images/ DESTINATION ${CMAKE_BINARY_DIR}/../images/)
 
