@@ -1,0 +1,93 @@
+# Bonsai-Lite 构建配置文件
+# Build Configuration File for Bonsai-Lite
+#
+# 使用方法 (Usage):
+# 1. 复制此文件为 build.config: cp build.config.example build.config
+# 2. 编辑配置选项
+# 3. 使用 make 时会自动加载配置: make
+#
+# 或者直接在命令行指定: make USE_MPI=0 DEBUG=1
+
+# ========================================
+# 基础配置 (Basic Configuration)
+# ========================================
+
+# MPI并行化支持 (MPI Parallelization Support)
+# 1 = 启用MPI支持，0 = 禁用MPI
+USE_MPI=1
+
+# 多线程MPI支持 (Multi-threaded MPI Support)
+# 只有在 USE_MPI=1 时才生效
+USE_MPIMT=1
+
+# 完全单线程单节点模式 (Complete Single-threaded Mode)
+# 1 = 禁用所有并行化，0 = 允许并行化
+SINGLE_NODE=0
+
+# ========================================
+# CUDA配置 (CUDA Configuration)
+# ========================================
+
+# CUDA架构支持 (CUDA Architecture Support)
+# 1 = 支持现代架构 (SM35+)，0 = 支持旧架构 (SM20)
+COMPILE_SM35=1
+
+# CUDA排序算法选择 (CUDA Sorting Algorithm)
+# 推荐使用CUB，性能更好
+USE_CUB=1
+USE_THRUST=0
+
+# ========================================
+# 调试和开发选项 (Debug and Development Options)
+# ========================================
+
+# 调试模式 (Debug Mode)
+# 1 = 调试版本 (-O0 -g)，0 = 优化版本 (-O3)
+DEBUG=0
+
+# CUDA调试选项 (CUDA Debug Options)
+CUDA_VERBOSE_PTXAS=0
+CUDA_DEVICE_DEBUGGING=0
+CUDA_KEEP_INTERMEDIATE=0
+
+# ========================================
+# 编译器和路径配置 (Compiler and Path Configuration)
+# ========================================
+
+# CUDA路径 (留空自动检测)
+# CUDA_PATH=/usr/local/cuda
+
+# 自定义编译器 (留空使用默认)
+# CXX=g++-9
+# NVCC=/usr/local/cuda-11.8/bin/nvcc
+
+# ========================================
+# 预定义配置模板 (Predefined Configuration Templates)
+# ========================================
+
+# 取消注释以下某一行来使用预定义配置：
+
+# 1. 高性能集群配置 (High-Performance Cluster)
+# USE_MPI=1
+# USE_MPIMT=1
+# USE_CUB=1
+# COMPILE_SM35=1
+# DEBUG=0
+
+# 2. 单机工作站配置 (Single Workstation)
+# USE_MPI=0
+# USE_CUB=1
+# COMPILE_SM35=1
+# DEBUG=0
+
+# 3. 开发调试配置 (Development Debug)
+# USE_MPI=0
+# SINGLE_NODE=1
+# DEBUG=1
+# CUDA_DEVICE_DEBUGGING=1
+
+# 4. 兼容旧硬件配置 (Legacy Hardware)
+# USE_MPI=0
+# COMPILE_SM35=0
+# USE_CUB=0
+# USE_THRUST=1
