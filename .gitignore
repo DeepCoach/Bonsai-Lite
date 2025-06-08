@@ -15,3 +15,9 @@
 
 #Temporary editor files
 *~
+
+# Build directories
+build*/
+
+# Compile scripts
+compile_*.sh

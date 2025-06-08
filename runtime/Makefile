@@ -83,6 +83,9 @@ SRC_DIR := src
 INCLUDE_DIR := include
 CUDA_KERNELS_DIR := CUDAkernels
 PROFILING_DIR := profiling
+
+# 支持自定义输出目录 (Custom output directory support)
+OUTPUT_DIR ?= .                # 默认输出到当前目录
 BUILD_DIR := build
 OBJ_DIR := $(BUILD_DIR)/obj
 CUDA_OBJ_DIR := $(BUILD_DIR)/cuda_obj
@@ -264,8 +267,9 @@ PROFFILES := cuxTimer.h \
 # 目标文件定义 (Object Files Definition)
 # ========================================
 
-# 确定可执行文件名
+# 确定可执行文件名和路径
 BINARY_NAME := bonsai2_slowdust
+BINARY_PATH := $(OUTPUT_DIR)/$(BINARY_NAME)
 
 # C++目标文件
 CXX_OBJECTS := $(CCFILES:%.cpp=$(OBJ_DIR)/%.o)
@@ -283,12 +287,14 @@ ALL_OBJECTS := $(CXX_OBJECTS) $(CUDA_OBJECTS)
 .PHONY: all clean distclean help test install check-deps
 
 # 默认目标
-all: check-deps $(BINARY_NAME)
+all: check-deps $(BINARY_PATH)
 
 # 主可执行文件
-$(BINARY_NAME): $(ALL_OBJECTS)
+$(BINARY_PATH): $(ALL_OBJECTS)
 	@echo "Linking $@..."
+	@mkdir -p $(OUTPUT_DIR)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
+	@echo "Build complete: $@"
 	@echo "Build complete: $@"
 
 # C++编译规则
@@ -322,7 +328,7 @@ endif
 clean:
 	@echo "Cleaning build files..."
 	rm -rf $(BUILD_DIR)
-	rm -f $(BINARY_NAME)
+	rm -f $(BINARY_NAME) $(BINARY_PATH)
 
 # 完全清理
 distclean: clean
@@ -330,21 +336,21 @@ distclean: clean
 	rm -f *.log *.out core core.*
 
 # 测试编译
-test: $(BINARY_NAME)
+test: $(BINARY_PATH)
 	@echo "Running basic test..."
 	@if [ -f ../inputExamples/model3_child_compact.tipsy ]; then \
 		echo "Test input file found"; \
-		./$(BINARY_NAME) --help > /dev/null 2>&1 && echo "Binary runs successfully" || echo "Binary execution failed"; \
+		$(BINARY_PATH) --help > /dev/null 2>&1 && echo "Binary runs successfully" || echo "Binary execution failed"; \
 	else \
 		echo "Test input file not found, only checking binary execution"; \
-		./$(BINARY_NAME) --help > /dev/null 2>&1 && echo "Binary runs successfully" || echo "Binary execution failed"; \
+		$(BINARY_PATH) --help > /dev/null 2>&1 && echo "Binary runs successfully" || echo "Binary execution failed"; \
 	fi
 
 # 安装 (可选)
-install: $(BINARY_NAME)
+install: $(BINARY_PATH)
 	@echo "Installing $(BINARY_NAME)..."
 	@mkdir -p $(HOME)/bin
-	cp $(BINARY_NAME) $(HOME)/bin/
+	cp $(BINARY_PATH) $(HOME)/bin/
 	@echo "Installed to $(HOME)/bin/$(BINARY_NAME)"
 
 # 显示帮助
@@ -361,6 +367,7 @@ help:
 	@echo ""
 	@echo "Configuration options (set as environment variables or make arguments):"
 	@echo ""
+	@echo "  OUTPUT_DIR=<path>        - Output directory for binary (default: current directory)"
 	@echo "  USE_MPI=1/0              - Enable/disable MPI support (default: 1)"
 	@echo "  USE_MPIMT=1/0            - Enable/disable multi-threaded MPI (default: 1)"
 	@echo "  USE_THRUST=1/0           - Use Thrust for sorting (default: 0)"
@@ -374,6 +381,7 @@ help:
 	@echo ""
 	@echo "Examples:"
 	@echo "  make                              # Standard build with MPI"
+	@echo "  make OUTPUT_DIR=./build_production # Build to specific directory"
 	@echo "  make SINGLE_NODE=1                # Single-threaded build"
 	@echo "  make USE_MPI=0                    # Build without MPI"
 	@echo "  make DEBUG=1                      # Debug build"
@@ -385,6 +393,8 @@ help:
 show-config:
 	@echo "Current build configuration:"
 	@echo "  Binary name:           $(BINARY_NAME)"
+	@echo "  Binary path:           $(BINARY_PATH)"
+	@echo "  Output directory:      $(OUTPUT_DIR)"
 	@echo "  C++ Compiler:          $(CXX)"
 	@echo "  CUDA Compiler:         $(NVCC)"
 	@echo "  CUDA Path:             $(CUDA_PATH)"
@@ -437,6 +447,7 @@ $(info Bonsai-Lite Makefile Build System)
 $(info ==========================================)
 $(info Configuration:)
 $(info   Target: $(BINARY_NAME))
+$(info   Output: $(BINARY_PATH))
 $(info   MPI Support: $(USE_MPI))
 $(info   Single Node: $(SINGLE_NODE))
 $(info   CUDA SM35+: $(COMPILE_SM35))
