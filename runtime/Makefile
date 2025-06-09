@@ -36,6 +36,9 @@ CUDA_DEVICE_DEBUGGING  ?= 0    # CUDA设备调试
 CUDA_KEEP_INTERMEDIATE ?= 0    # 保留中间文件
 DEBUG                  ?= 0    # 调试模式
 
+# 构建清理选项 (Build cleanup options)
+KEEP_BUILD_FILES       ?= 0    # 保留构建中间文件 (默认: 0 - 不保留)
+
 # 单线程单节点选项 (Single-threaded single-node option)
 SINGLE_NODE     ?= 0     # 完全单线程单节点模式 (禁用所有并行化)
 
@@ -86,9 +89,19 @@ PROFILING_DIR := profiling
 
 # 支持自定义输出目录 (Custom output directory support)
 OUTPUT_DIR ?= .                # 默认输出到当前目录
-BUILD_DIR := build
-OBJ_DIR := $(BUILD_DIR)/obj
-CUDA_OBJ_DIR := $(BUILD_DIR)/cuda_obj
+
+# 根据OUTPUT_DIR设置构建目录 (Set build directory based on OUTPUT_DIR)
+# 当指定OUTPUT_DIR时，构建目录完全独立，不使用默认的build目录
+ifeq ($(OUTPUT_DIR), .)
+    BUILD_DIR := build
+    OBJ_DIR := $(BUILD_DIR)/obj
+    CUDA_OBJ_DIR := $(BUILD_DIR)/cuda_obj
+else
+    # 在指定的输出目录下创建独立的构建结构
+    BUILD_DIR := $(OUTPUT_DIR)/.build
+    OBJ_DIR := $(BUILD_DIR)/obj
+    CUDA_OBJ_DIR := $(BUILD_DIR)/cuda_obj
+endif
 
 # ========================================
 # 编译标志设置 (Compilation Flags)
@@ -288,13 +301,16 @@ ALL_OBJECTS := $(CXX_OBJECTS) $(CUDA_OBJECTS)
 
 # 默认目标
 all: check-deps $(BINARY_PATH)
+ifneq ($(KEEP_BUILD_FILES), 1)
+	@echo "Cleaning intermediate build files..."
+	@rm -rf $(BUILD_DIR)
+endif
 
 # 主可执行文件
 $(BINARY_PATH): $(ALL_OBJECTS)
 	@echo "Linking $@..."
 	@mkdir -p $(OUTPUT_DIR)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
-	@echo "Build complete: $@"
 	@echo "Build complete: $@"
 
 # C++编译规则
@@ -327,8 +343,15 @@ endif
 # 清理编译文件
 clean:
 	@echo "Cleaning build files..."
+ifeq ($(OUTPUT_DIR), .)
+	@echo "Cleaning default build directory..."
+	rm -rf build
+	rm -f $(BINARY_NAME)
+else
+	@echo "Cleaning output directory: $(OUTPUT_DIR)"
 	rm -rf $(BUILD_DIR)
-	rm -f $(BINARY_NAME) $(BINARY_PATH)
+	rm -f $(BINARY_PATH)
+endif
 
 # 完全清理
 distclean: clean
@@ -368,6 +391,7 @@ help:
 	@echo "Configuration options (set as environment variables or make arguments):"
 	@echo ""
 	@echo "  OUTPUT_DIR=<path>        - Output directory for binary (default: current directory)"
+	@echo "  KEEP_BUILD_FILES=1/0     - Keep intermediate build files (default: 0)"
 	@echo "  USE_MPI=1/0              - Enable/disable MPI support (default: 1)"
 	@echo "  USE_MPIMT=1/0            - Enable/disable multi-threaded MPI (default: 1)"
 	@echo "  USE_THRUST=1/0           - Use Thrust for sorting (default: 0)"
@@ -382,11 +406,13 @@ help:
 	@echo "Examples:"
 	@echo "  make                              # Standard build with MPI"
 	@echo "  make OUTPUT_DIR=./build_production # Build to specific directory"
+	@echo "  make KEEP_BUILD_FILES=1           # Keep intermediate build files"
 	@echo "  make SINGLE_NODE=1                # Single-threaded build"
 	@echo "  make USE_MPI=0                    # Build without MPI"
 	@echo "  make DEBUG=1                      # Debug build"
 	@echo "  make COMPILE_SM35=0               # Build for older GPUs"
 	@echo "  make USE_CUB=0 USE_THRUST=1       # Use Thrust instead of CUB"
+	@echo "  make OUTPUT_DIR=./dist clean      # Clean specific output directory"
 	@echo "  make -j8                          # Parallel build with 8 jobs"
 
 # 显示当前配置
@@ -395,6 +421,8 @@ show-config:
 	@echo "  Binary name:           $(BINARY_NAME)"
 	@echo "  Binary path:           $(BINARY_PATH)"
 	@echo "  Output directory:      $(OUTPUT_DIR)"
+	@echo "  Build directory:       $(BUILD_DIR)"
+	@echo "  Keep build files:      $(KEEP_BUILD_FILES)"
 	@echo "  C++ Compiler:          $(CXX)"
 	@echo "  CUDA Compiler:         $(NVCC)"
 	@echo "  CUDA Path:             $(CUDA_PATH)"
