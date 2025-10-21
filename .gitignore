@@ -18,6 +18,7 @@
 
 # Build directories
 build*/
+includ*/
 
 # Compile scripts
 compile_*.sh
